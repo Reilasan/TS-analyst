@@ -1,5 +1,5 @@
 ---
-title: "Отчёт по лабораторной работе №2"
+title: "binary regression"
 output: html_document
 ---
 
