@@ -1,0 +1,266 @@
+---
+title: "Отчёт по лабораторной работе №2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(memisc)
+library(DescTools)
+library(lmtest)
+library(caTools)
+library(dplyr)
+library(broom)
+library(readxl)
+library(knitr)
+library(kernlab)
+library(caret)
+library(mfx)
+library(pROC)
+library(ResourceSelection)
+library(ROCR)
+library(nortest)
+library(MKmisc)
+library(car)
+library(readxl)
+library(caTools)
+library(DescTools)
+library(dplyr)
+library(ggplot2)
+library(lmtest)
+library(glmnet)
+library(nortest)
+library(tidyverse)
+library(sm)
+library(knitr)
+library(htmltools)
+library(broom)
+library(car)
+library(data.table)
+library(tidyverse)
+library(foreach)
+library(ggcorrplot)
+library(gridExtra)
+library(grid)
+library(ggExtra)
+library(Metrics)
+library(e1071)
+library(pedometrics)
+library(scales)
+library(psych)
+library(corrgram)
+```
+
+
+<h2>1. Загрузка и подготовка данных:</h2>
+```{r}
+diabetics<-read.csv(file = "diabetes2.csv", header = TRUE, sep = ",", dec =".")
+str(diabetics)
+```
+Исходными данными являются показатели наличия или отсутствия диабета.<br>
+Выбранными полями являются:
+<ol>
+<li>Pregnancies - количество беременностей
+<li>Glucose - глюкоза в крови
+<li>BloodPressure - кровяное давление
+<li>SkinThickness - толщина кожи
+<li>Insulin - инсулин в крови
+<li>BMI - индекс массы тела
+<li>DiabetesPedigreeFunction - наследственность
+<li>Age - возраст
+<li>Outcome - результат
+</ol>
+>Зависимая бинарная переменная – наличие диабета. Цель исследования – выяснить, какие из перечисленных выше факторов влияют на появления диабета. Если есть связь – установить ее характер и силу.
+
+```{r}
+diabetics<-diabetics[(!(diabetics$BloodPressure==0) & !(diabetics$SkinThickness==0)),]
+diabetics$Outcome<-as.factor(diabetics$Outcome)
+str(diabetics)
+```
+```{r}
+diab<-diabetics
+diab$Outcome<-NULL
+corr.test(diab)
+corrgram(diab, order=TRUE)
+```
+
+
+<h2>2. Разделим выборку на тестовую и обучающую:</h2>
+```{r}
+set.seed(1)
+split <- sample.split(diabetics$Outcome, SplitRatio = 0.75)
+train <- subset(diabetics, split == TRUE)
+test <- subset(diabetics, split == FALSE)
+```
+<h2>3. Построим модели:</h2>
+<center><h3>Логит-модель</h3></center>
+```{r}
+model_1 <- glm(Outcome ~ ., train, family =binomial(link = "logit"))
+summary(model_1)
+```
+<center><h3>Пробит-модель</h3></center>
+```{r}
+model_2 <- glm(Outcome~., train, family =binomial(link = "probit"))
+summary(model_2)
+```
+<center><h3>Гомпит-модель</h3></center>
+```{r warning=FALSE}
+model_3 <- glm(Outcome~., train, family =binomial(link = "cloglog"))
+summary(model_3)
+```
+<h2>4. Уберём из моделей незначимые факторы:</h2>
+<center><h3>Логит-модель</h3></center>
+```{r}
+model_1 <- glm(Outcome ~ Pregnancies+Glucose+BMI+DiabetesPedigreeFunction, train, family =binomial(link = "logit"))
+summary(model_1)
+```
+<center><h3>Пробит-модель</h3></center>
+```{r}
+model_2 <- glm(Outcome~Pregnancies+Glucose+BMI+DiabetesPedigreeFunction, train, family =binomial(link = "probit"))
+summary(model_2)
+```
+<center><h3>Гомпит-модель</h3></center>
+```{r}
+model_3 <- glm(Outcome~Pregnancies+Glucose+BMI, train, family =binomial(link = "cloglog"))
+summary(model_3)
+```
+
+<h2>5. Выбор лучшей модели:</h2>
+```{r}
+glance(model_1)
+glance(model_2)
+glance(model_3)
+```
+| Model | AIC | BIC |
+| --- |---| ---|
+| Логит | 376 | 396 |
+| Пробит | 377 | 397 |
+| Гомпит | 384 | 400 |
+
+>Наименьшие информационные критерии у логит-модели.
+
+<h2>6. Показатели качества модели:</h2>
+
+1) Коэффициент детерминации Макфаддена (McFadden R-sq):
+```{r}
+PseudoR2(model_1, which = "McFadden")
+PseudoR2(model_2, which = "McFadden")
+PseudoR2(model_3, which = "McFadden")
+```
+2) Критическая статистика для теста отношения правдоподобия p(Likelihood-ratio):
+```{r}
+lrtest(model_1, model_2, model_3)
+```
+3) Критерий правдоподобия (Log-likelihood)
+```{r}
+logLik(model_1)
+logLik(model_2)
+logLik(model_3)
+```
+
+<h2>7. Оценка построенной модели:</h2>
+```{r}
+par(mfrow=c(2,2))
+plot(model_1)
+```
+
+
+<h2>8. Спрогнозируем значения по выбранной модели на тестовой выборке:</h2>
+```{r}
+test$pred_1 <- predict(model_1, test, type = 'response')
+str(test)
+```
+
+<h2>9. Расчет маржинального эффекта в логит-модели:</h2>
+```{r}
+logitmfx(Outcome ~ Pregnancies+Glucose+BMI+DiabetesPedigreeFunction, data = test)
+```
+>Из расчётов следует, что при изменении фактора количества беременностей на единицу, вероятность заболеть диабетом увеличивается на 2%, при повышении глюкозы - на 1%, при увеличении индекса массы - на 2% и при увеличении индекса встречаемости диабета в семье - на 34%.
+
+
+<h2>9. Оценим качество классификации с помощью матрицы сопряженности confusionMatrix (library(caret)).</h2>
+```{r}
+test$pred1 <- ifelse(test$pred_1 < 0.6, 0, 1)
+test$pred1 <- as.factor(test$pred1)
+confusionMatrix(data = test$pred1,reference = test$Outcome, positive = "1", mode = "everything")
+```
+
+<h2>10. Построение ROC-кривой:</h2>
+```{r}
+pr <- prediction(test$pred_1, test$Outcome)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+lines(c(0,1),c(0,1))
+title("ROC-кривая")
+```
+
+<h1>Сэмплирование</h1>
+```{r}
+set.seed(1)
+split <- sample.split(diabetics$Outcome, SplitRatio = 0.75)
+train <- subset(diabetics, split == TRUE)
+test <- subset(diabetics, split == FALSE)
+
+set.seed(951)
+train_up <- upSample(x = train, y = train$Outcome, yname = "Outcome")
+
+set.seed(951)
+train_down <- downSample(x = train, y = train$Outcome, yname = "Outcome")
+```
+<center>Логит-модель</center>
+```{r warning=FALSE}
+model_11 <- glm(Outcome ~ .,
+train_up,
+family =binomial(link = "logit"))
+summary(model_11)
+model_12 <- glm(Outcome ~ .,
+train_down,
+family =binomial(link = "logit"))
+summary(model_12)
+```
+
+
+<h2>Значимые факторы</h2>
+```{r}
+model_11 <- glm(Outcome ~ Pregnancies+Glucose+SkinThickness+BMI+DiabetesPedigreeFunction+Age,
+train_up,
+family =binomial(link = "logit"))
+summary(model_11)
+model_12 <- glm(Outcome ~ 
+Pregnancies+Glucose+BMI+DiabetesPedigreeFunction,
+train_down,
+family =binomial(link = "logit"))
+summary(model_12)
+
+```
+<h2></h2>
+```{r}
+glance(model_11)
+glance(model_12)
+```
+<h2>Оценка модели</h2>
+```{r}
+par(mfrow=c(2,2))
+plot(model_11)
+```
+
+<h2>Прогноз</h2>
+```{r}
+test$pred_11 <- predict(model_11, test, type = 'response')
+str(test)
+```
+
+<h2>Расчет маржинального эффекта в логит-модели:</h2>
+```{r}
+logitmfx(Outcome ~ Pregnancies + Glucose + SkinThickness + 
+    BMI + DiabetesPedigreeFunction + Age, data = test)
+```
+
+<h2>Качество классификации</h2>
+```{r}
+test$pred11 <- ifelse(test$pred_11 < 0.6, 0, 1)
+test$pred11 <- as.factor(test$pred11)
+confusionMatrix(data = test$pred11,reference = test$Outcome, positive = "1", mode = "everything")
+```
+>Алгоритм oversampling позволил улучшить качество модели.
