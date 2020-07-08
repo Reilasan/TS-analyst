@@ -1,12 +1,9 @@
 ---
-title: "Отчёт по лабораторной работе №1"
+title: "multiple regression"
 output: html_document
 ---
 
-
-
 <center><h1>Многофакторные регрессионные уравнения</h1></center>
-
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
