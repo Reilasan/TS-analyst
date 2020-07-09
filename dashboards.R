@@ -8,3 +8,9 @@ library(lubridate)
 library(gridExtra)
 library(reshape2)
 library(TTR)
+library(openxlsx)
+
+data("EuStockMarkets")
+EuStockMarkets
+
+plot.ts(EuStockMarkets)
