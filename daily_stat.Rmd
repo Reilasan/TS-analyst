@@ -1,0 +1,121 @@
+---
+title: "daily_stat"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(readxl)
+library(caTools)
+library(DescTools)
+library(dplyr)
+library(ggplot2)
+library(lmtest)
+library(glmnet)
+library(nortest)
+library(tidyverse)
+library(sm)
+library(knitr)
+library(htmltools)
+library(broom)
+library(car)
+library(data.table)
+library(tidyverse)
+library(foreach)
+library(ggcorrplot)
+library(gridExtra)
+library(grid)
+library(ggExtra)
+library(Metrics)
+library(e1071)
+library(pedometrics)
+library(scales)
+library(psych)
+library(corrgram)
+library(openxlsx)
+library(TTR)
+library(forecast)
+```
+
+```{r}
+df <- read.xlsx("денежная_масса.xlsx",sheet = 1, startRow = 1,
+  colNames = TRUE)
+head(df)
+```
+
+```{r}
+var<-ts(df['Денежная.база'],start = 1, frequency = 12)
+```
+
+```{r}
+plot.ts(var)
+```
+
+```{r}
+#varSMA100<-SMA(var['Денежная.база'], n=15)
+#plot.ts(varSMA100)
+```
+
+```{r}
+fit <- auto.arima(var)
+fcast <- forecast(fit, h=5)
+plot(fcast)
+```
+
+```{r}
+fit <- auto.arima(varSMA100)
+fcast <- forecast(fit, h=5000)
+plot(fcast)
+```
+
+```{r}
+var2<-var[6000:6903]
+```
+
+```{r}
+fit <- auto.arima(var2)
+fcast <- forecast(fit, h=5)
+plot(fcast)
+```
+
+
+```{r}
+air.model <- Arima(window(var,end=6309),order=c(531,2,100))
+plot(forecast(air.model,h=4000))
+```
+
+```{r}
+rainseriesforecasts <- HoltWinters(var, beta=FALSE, gamma=FALSE)
+plot(rainseriesforecasts)
+```
+
+```{r}
+fit <- HoltWinters(var,gamma=FALSE)
+pred<-forecast(fit, h=1000)
+plot(pred$mean)
+```
+```{r}
+plot(fit$fitted)
+```
+
+```{r}
+fit <- nnetar(var, size = 100)
+fcast <- forecast(fit, h=4000)
+plot(fcast)
+```
+
+```{r}
+res <- forecast(fit, h=5000)
+plot(res)
+```
+
+```{r}
+print <- as.data.frame(res)
+```
+
+```{r}
+write.xlsx(print, 'minutes_pred.xlsx')
+```
+
