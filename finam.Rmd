@@ -1,0 +1,54 @@
+---
+title: "finam"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+df <- read.csv(file="C:\\Users\\Dilara\\Desktop\\data analyt\\TS-analyst\\fin.csv", header=TRUE, sep=",")
+head(df)
+```
+```{r}
+library(data.table)
+setnames(df, old=c("X_date_","X_open_", "X_high_","X_low_", "X_close_", "X_per_", "X_vol_"), new=c("date", "open", "high", "low", "close", "per", "vol"))
+```
+
+```{r}
+head(df)
+```
+
+```{r}
+df_short <- head(df,100)
+fig <- df_short %>% plot_ly(x = ~date, type="candlestick",
+          open = ~open, close = ~close,
+          high = ~high, low = ~low) 
+fig <- fig %>% layout(title = "Basic Candlestick Chart")
+
+fig
+```
+```{r}
+
+```
+
+```{r}
+
+```
+
+
+
+```{r}
+if(df$per[i]==df$per[i]){
+    k=k+1
+  }
+  i=i+1
+}
+k
+```
+
+```{r}
+length(df$close)
+```
+
